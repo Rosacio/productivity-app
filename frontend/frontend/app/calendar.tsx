@@ -28,7 +28,7 @@ function TaskForm({ selectedDate }: { selectedDate: string | null }) {
   };
 
   const handleSubmit = async () => {
-    await fetch("http://127.0.0.1:8000/tasks/", {
+    await fetch("http://localhost:8000/tasks/", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
