@@ -4,12 +4,22 @@ from backend import database
 from backend.crud import task as task_crud, category as category_crud
 from backend.schemas import task as task_schemas, category as category_schemas
 from backend.models import task as task_models, category as category_models
+from fastapi.middleware.cors import CORSMiddleware
 
 # Cria a app FastAPI
 app = FastAPI(
     title="Productivity API",
     description="Backend para gerir tarefas, categorias e rotinas",
     version="0.1.0",
+)
+
+# Adiciona o middleware de CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Ou especifique a URL do seu frontend
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Criar as tabelas na BD (caso não existam)
