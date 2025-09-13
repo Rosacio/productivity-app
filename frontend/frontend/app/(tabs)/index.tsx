@@ -1,45 +1,101 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet, View, Button, Text} from 'react-native';
-import { Link } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { StyleSheet, View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { useRouter } from 'expo-router';
 
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+const API_URL = "http://192.168.1.75:8000"; // teu backend
 
 export default function HomeScreen() {
+  const router = useRouter();
+  const [tasks, setTasks] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchTasks();
+  }, []);
+
+  const fetchTasks = async () => {
+    try {
+      const response = await fetch(`${API_URL}/tasks/`);
+      const data = await response.json();
+      setTasks(data);
+    } catch (error) {
+      console.error('Erro ao buscar tarefas:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePress = (taskId: number) => {
+    router.push({
+      pathname: '/(tabs)/edit-habit',
+      params: { taskId: taskId.toString() },
+    });
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#cf4949ff" />
+      </View>
+    );
+  }
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-    </ParallaxScrollView>
+    <ScrollView contentContainerStyle={styles.container}>
+      {tasks.length === 0 && <Text style={styles.noTasks}>No tasks yet</Text>}
+      {tasks.map((task) => (
+        <TouchableOpacity
+          key={task.id}
+          style={styles.taskCard}
+          onPress={() => handlePress(task.id)}
+        >
+          <Text style={styles.taskTitle}>{task.title}</Text>
+          <Text style={styles.taskType}>{task.habit_type}</Text>
+          <Text style={styles.taskDate}>Start: {task.start_date}</Text>
+        </TouchableOpacity>
+      ))}
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
+  container: {
+    padding: 16,
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 8,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  noTasks: {
+    textAlign: 'center',
+    marginTop: 20,
+    fontSize: 16,
+    color: '#888',
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  taskCard: {
+    backgroundColor: '#fff',
+    padding: 16,
+    marginBottom: 12,
+    borderRadius: 12,
+    shadowColor: '#cf4949ff',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  taskTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  taskType: {
+    marginTop: 4,
+    fontSize: 14,
+    color: '#555',
+  },
+  taskDate: {
+    marginTop: 4,
+    fontSize: 12,
+    color: '#999',
   },
 });

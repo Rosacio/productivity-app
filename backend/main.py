@@ -34,10 +34,30 @@ category_models.Base.metadata.create_all(bind=database.engine)
 def create_task(task: task_schemas.TaskCreate, db: Session = Depends(database.get_db)):
     return task_crud.create_task(db, task)
 
-
 @app.get("/tasks/", response_model=list[task_schemas.Task])
 def read_tasks(db: Session = Depends(database.get_db)):
     return task_crud.get_tasks(db)
+
+@app.get("/tasks/{task_id}", response_model=task_schemas.Task)
+def read_task(task_id: int, db: Session = Depends(database.get_db)):
+    db_task = task_crud.get_task(db, task_id)
+    if db_task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return db_task
+
+@app.put("/tasks/{task_id}", response_model=task_schemas.Task)
+def update_task(task_id: int, task: task_schemas.TaskUpdate, db: Session = Depends(database.get_db)):
+    db_task = task_crud.update_task(db, task_id, task)
+    if db_task is None:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return db_task
+
+@app.delete("/tasks/{task_id}")
+def delete_task(task_id: int, db: Session = Depends(database.get_db)):
+    success = task_crud.delete_task(db, task_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return {"detail": "Task deleted successfully"}
 
 
 # -------------------------------
