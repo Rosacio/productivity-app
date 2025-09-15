@@ -1,27 +1,48 @@
-import React, { useState } from 'react';
-import { StyleSheet, View, Text, Modal, Button, TextInput, ScrollView } from 'react-native';
-import { Calendar } from 'react-native-calendars';
-import { Picker } from '@react-native-picker/picker';
+import React, { useState, useEffect } from "react";
+import {
+  StyleSheet,
+  View,
+  Text,
+  Modal,
+  Button,
+  TextInput,
+  ScrollView,
+} from "react-native";
+import { Picker } from "@react-native-picker/picker";
+import { Calendar } from "react-native-big-calendar";
+import { SafeAreaView } from "react-native-safe-area-context";
+import RNPickerSelect from 'react-native-picker-select';
+
+
 
 const months = [
-  'January','February','March','April','May','June',
-  'July','August','September','October','November','December'
+  "January","February","March","April","May","June",
+  "July","August","September","October","November","December"
 ];
 
-// 🟦 TaskForm for React Native
-function TaskForm({ selectedDate }: { selectedDate: string | null }) {
+// 🟦 TaskForm inside modal
+function TaskForm({ selectedDate, onTaskCreated }: { selectedDate: Date | null, onTaskCreated: () => void }) {
   const [form, setForm] = useState({
     title: "",
     description: "",
     schedule_type: "",
     unit: "",
     unit_value: "",
-    start_date: selectedDate || "",
+    start_date: selectedDate ? selectedDate.toISOString().split("T")[0] : "",
     time: "",
     habit_type: "",
     notes: "",
     category_id: "",
   });
+
+  useEffect(() => {
+    if (selectedDate) {
+      setForm(prev => ({
+        ...prev,
+        start_date: selectedDate.toISOString().split("T")[0],
+      }));
+    }
+  }, [selectedDate]);
 
   const handleChange = (name: string, value: string) => {
     setForm({ ...form, [name]: value });
@@ -37,90 +58,25 @@ function TaskForm({ selectedDate }: { selectedDate: string | null }) {
         category_id: form.category_id ? parseInt(form.category_id) : null,
       }),
     });
-    // Optionally reset form or show success message
-    setForm({
-      title: "",
-      description: "",
-      schedule_type: "",
-      unit: "",
-      unit_value: "",
-      start_date: selectedDate || "",
-      time: "",
-      habit_type: "",
-      notes: "",
-      category_id: "",
-    });
+
+    setForm({ ...form, title: "", description: "", notes: "" });
+    onTaskCreated();
   };
 
   return (
     <ScrollView style={styles.formContainer}>
       <Text style={styles.formTitle}>Create Task</Text>
-      <TextInput
-        style={styles.input}
-        placeholder="Title"
-        value={form.title}
-        onChangeText={v => handleChange("title", v)}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Description"
-        value={form.description}
-        onChangeText={v => handleChange("description", v)}
-      />
-      <Picker
-        selectedValue={form.schedule_type}
-        onValueChange={v => handleChange("schedule_type", v)}
-        style={styles.picker}
-      >
+      <TextInput style={styles.input} placeholder="Title" value={form.title} onChangeText={v => handleChange("title", v)} />
+      <TextInput style={styles.input} placeholder="Description" value={form.description} onChangeText={v => handleChange("description", v)} />
+      <Picker selectedValue={form.schedule_type} onValueChange={v => handleChange("schedule_type", v)} style={styles.picker}>
         <Picker.Item label="Select schedule" value="" />
         <Picker.Item label="Daily" value="daily" />
         <Picker.Item label="Weekly" value="weekly" />
         <Picker.Item label="Every Other Day" value="every_other_day" />
       </Picker>
-      <TextInput
-        style={styles.input}
-        placeholder="Unit (e.g. minutes)"
-        value={form.unit}
-        onChangeText={v => handleChange("unit", v)}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Unit Value"
-        value={form.unit_value}
-        onChangeText={v => handleChange("unit_value", v)}
-        keyboardType="numeric"
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Start Date (YYYY-MM-DD)"
-        value={form.start_date}
-        onChangeText={v => handleChange("start_date", v)}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Time (HH:MM)"
-        value={form.time}
-        onChangeText={v => handleChange("time", v)}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Habit Type"
-        value={form.habit_type}
-        onChangeText={v => handleChange("habit_type", v)}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Notes"
-        value={form.notes}
-        onChangeText={v => handleChange("notes", v)}
-      />
-      <TextInput
-        style={styles.input}
-        placeholder="Category ID"
-        value={form.category_id}
-        onChangeText={v => handleChange("category_id", v)}
-        keyboardType="numeric"
-      />
+      <TextInput style={styles.input} placeholder="Unit (e.g. minutes)" value={form.unit} onChangeText={v => handleChange("unit", v)} />
+      <TextInput style={styles.input} placeholder="Unit Value" value={form.unit_value} onChangeText={v => handleChange("unit_value", v)} keyboardType="numeric" />
+      <TextInput style={styles.input} placeholder="Time (HH:MM)" value={form.time} onChangeText={v => handleChange("time", v)} />
       <Button title="Create Task" onPress={handleSubmit} />
     </ScrollView>
   );
@@ -128,20 +84,32 @@ function TaskForm({ selectedDate }: { selectedDate: string | null }) {
 
 export default function CalendarPage() {
   const today = new Date();
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [events, setEvents] = useState<any[]>([]);
+  const [formVisible, setFormVisible] = useState(false);
+  const [modalVisible, setModalVisible] = useState(false);
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
-  const [modalVisible, setModalVisible] = useState(false);
 
-  const onDayPress = (day: { dateString: string }) => {
-    setSelectedDate(day.dateString);
+  const fetchTasks = async () => {
+    const res = await fetch("http://localhost:8000/tasks/");
+    const data = await res.json();
+    setEvents(
+      data.map((task: any) => ({
+        title: task.title,
+        start: new Date(task.start_date + "T" + (task.time || "09:00")),
+        end: new Date(task.start_date + "T" + (task.time || "10:00")),
+      }))
+    );
   };
 
-  const goToMonthYear = () => {
-    const monthStr = (currentMonth + 1).toString().padStart(2, '0');
-    const newDate = `${currentYear}-${monthStr}-01`;
-    setSelectedDate(newDate);
-    setModalVisible(false);
+  useEffect(() => {
+    fetchTasks();
+  }, []);
+
+  const handleDatePress = (date: Date) => {
+    setSelectedDate(date);
+    setFormVisible(true);
   };
 
   return (
@@ -151,23 +119,28 @@ export default function CalendarPage() {
       </Text>
 
       <Calendar
-        current={selectedDate || undefined}
-        onDayPress={onDayPress}
-        markedDates={
-          selectedDate
-            ? { [selectedDate]: { selected: true, selectedColor: '#00adf5' } }
-            : {}
-        }
+        events={events}
+        height={500}
+        onPressCell={handleDatePress}
       />
 
-      {selectedDate && <Text style={styles.selected}>Selected: {selectedDate}</Text>}
-
-      {/* Task Form */}
-      <TaskForm selectedDate={selectedDate} />
+      {/* Task Form Modal */}
+      <Modal visible={formVisible} animationType="slide">
+        <View style={styles.modalContainer}>
+          <TaskForm
+            selectedDate={selectedDate}
+            onTaskCreated={() => {
+              fetchTasks();
+              setFormVisible(false);
+            }}
+          />
+          <Button title="Close" onPress={() => setFormVisible(false)} />
+        </View>
+      </Modal>
 
       {/* Month/Year Picker Modal */}
-      <Modal visible={modalVisible} transparent={true} animationType="slide">
-        <View style={styles.modalContainer}>
+      <Modal visible={modalVisible} animationType="slide">
+        <SafeAreaView style={styles.modalContainer}>
           <View style={styles.pickerContainer}>
             <Text style={styles.modalTitle}>Select Month and Year</Text>
             <Picker selectedValue={currentMonth} onValueChange={setCurrentMonth} style={styles.picker}>
@@ -180,24 +153,51 @@ export default function CalendarPage() {
                 <Picker.Item key={y} label={y.toString()} value={y} />
               ))}
             </Picker>
-            <Button title="Go" onPress={goToMonthYear} />
+            <Button title="Go" onPress={() => setModalVisible(false)} />
             <Button title="Cancel" onPress={() => setModalVisible(false)} />
           </View>
-        </View>
+        </SafeAreaView>
       </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16 },
-  title: { fontSize: 22, fontWeight: 'bold', marginBottom: 16 },
-  selected: { marginTop: 16, fontSize: 16 },
-  modalContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#00000080' },
-  pickerContainer: { width: '80%', backgroundColor: 'white', borderRadius: 10, padding: 16 },
-  modalTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 12 },
-  formContainer: { marginTop: 24, backgroundColor: '#f7f7f7', padding: 16, borderRadius: 8 },
-  formTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 12 },
-  input: { backgroundColor: '#fff', padding: 8, marginBottom: 10, borderRadius: 4, borderWidth: 1, borderColor: '#ddd' },
-  picker: { marginBottom: 10 },
+  container: { flex: 1, padding: 16, backgroundColor: "#a74343ff"   },
+  title: {
+    fontSize: 24,
+    fontWeight: "600",
+    color: "#0057b9ff", // a nice blue
+    textAlign: "center",
+    paddingVertical: 12,
+    backgroundColor: "#f0f4f8",
+    borderRadius: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3, // for Android shadow
+    },
+  modalContainer: { 
+    flex: 1, 
+    justifyContent: "center", 
+    padding: 16, 
+    backgroundColor: "#fff"},
+    pickerContainer: {
+    backgroundColor: "#fff", // ✅ white background
+    borderRadius: 10,
+    padding: 16,
+  },
+  modalTitle: { 
+    fontSize: 20, 
+    fontWeight: "bold", 
+    marginBottom: 12 
+  },
+  formContainer: { backgroundColor: "#f7f7f7", padding: 16, borderRadius: 8 },
+  formTitle: { fontSize: 18, fontWeight: "bold", marginBottom: 12 },
+  input: { backgroundColor: "#fff", padding: 8, marginBottom: 10, borderRadius: 4, borderWidth: 1, borderColor: "#ddd" },
+  picker: {
+    backgroundColor: "#000",
+
+  },
 });
