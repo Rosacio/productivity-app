@@ -14,7 +14,9 @@ class Task(Base):
     unit = Column(String, nullable=True)            # e.g., "minutes"
     unit_value = Column(Integer, nullable=True)     # e.g., 30
     start_date = Column(Date, nullable=True)        # e.g., 2025-09-08
-    time = Column(Time, nullable=True)              # e.g., 08:30
+    start_time = Column(Time, nullable=True)        # e.g., 08:00
+    end_time = Column(Time, nullable=True)          # e.g., 09:00
+    all_day = Column(Boolean, default=False)  # all-day event
     habit_type = Column(String, nullable=True)      # e.g., "health"
     notes = Column(String, nullable=True)           # extra notes
 
