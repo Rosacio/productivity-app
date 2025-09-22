@@ -39,14 +39,18 @@ interface Task {
   id?: number;
   title: string;
   description?: string;
+  completed?: boolean;
   schedule_type: "daily" | "weekly" | "every_other_day" | "";
   unit?: string;
   unit_value?: number | null;
-  start_date: string;
-  time?: string;
+  start_date: string;   // e.g. "2025-09-18"
+  start_time?: string;  // e.g. "08:30"
+  end_time?: string;    // e.g. "09:30"
+  all_day?: boolean;    // true if no specific time
   habit_type?: string;
   notes?: string;
   category_id?: number | null;
+  category_name?: string; // (optional) fetched via join for display
 }
 
 interface CalendarEvent {
@@ -156,9 +160,9 @@ const formatDateForInput = (date: Date): string => {
 };
 
 const createCalendarEvent = (task: Task): CalendarEvent => {
-  const startTime = task.time || DEFAULT_START_TIME;
+  const startTime = task.start_time || DEFAULT_START_TIME;
   const startDateTime = new Date(`${task.start_date}T${startTime}`);
-  const endDateTime = new Date(`${task.start_date}T${task.time || DEFAULT_END_TIME}`);
+  const endDateTime = new Date(`${task.start_date}T${task.end_time || DEFAULT_END_TIME}`);
   
   return {
     title: task.title,
@@ -431,20 +435,11 @@ export default function CalendarPage() {
   }, [calendarDate]);
 
   const handleSwipe = useCallback((newDateRange: Date[]) => {
-    console.log('📱 SWIPE DETECTED!');
-    console.log('Raw data received:', newDateRange);
-    console.log('Data type:', typeof newDateRange);
-    console.log('Is it an array?', Array.isArray(newDateRange));
     
     if (newDateRange && newDateRange.length > 0) {
-      console.log('✅ Valid date found:', newDateRange[0]);
-      console.log('About to update calendarDate...');
       setCalendarDate(newDateRange[0]);
-      console.log('setCalendarDate called!');
     } else {
-      console.log('❌ No valid date in the range');
     }
-    console.log('--- End of swipe handler ---');
   }, []);
 
   const yearOptions = useMemo(() => 

@@ -1,36 +1,84 @@
 import React, { useState } from "react";
-import { StyleSheet, View, TextInput, ScrollView, Text, TouchableOpacity, Alert, Platform } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import {
+  StyleSheet,
+  View,
+  TextInput,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  Alert,
+  Button,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Picker } from "@react-native-picker/picker";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import { Switch, Modal, Platform } from "react-native";
 
-// ⚡ Criar config de API (podes mover para config.js mais tarde)
-const API_URL = "http://192.168.1.15:8000"; // <-- TROCAR pelo IP da tua máquina
+const API_URL = "http://192.168.1.15:8000"; // ⚡ move to config/env later
+
+const defaultForm = {
+  title: "",
+  description: "",
+  schedule_type: "daily",
+  unit: "",
+  unit_value: "",
+  start_date: new Date(),
+  start_time: new Date(),
+  end_time: new Date(),
+  all_day: false,
+  habit_type: "health",
+  notes: "",
+  category_id: "",
+};
 
 export default function AddHabitScreen() {
-  const [form, setForm] = useState({
-    title: "",
-    description: "",
-    schedule_type: "daily",
-    unit: "",
-    unit_value: "",
-    start_date: new Date(),
-    time: new Date(),
-    habit_type: "health",
-    notes: "",
-    category_id: "",
-  });
-
+  const [form, setForm] = useState(defaultForm);
+  const [show, setShow] = useState(false);
+  const [mode, setMode] = useState<'date' | 'time'>('date');
+  const [date, setDate] = useState(new Date(1598051730000));
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState<"start" | "end" | null>(
+    null
+  );
+
+  const onChange = (event, selectedDate) => {
+  setShow(false);
+  if (selectedDate) {
+      if (mode === 'date') {
+        handleChange("start_date", selectedDate);
+      } else if (mode === 'time') {
+        // Handle time selection if needed
+        handleChange("start_time", selectedDate);
+      }
+    }
+  };
+
+  const showMode = (currentMode: 'date' | 'time') => {
+    setMode(currentMode);
+    setShow(true);
+  };
+
+  const showDatepicker = () => {
+    showMode('date');
+  };
+
+  const showTimepicker = () => {
+    showMode('time');
+  };
 
   const handleChange = (name: string, value: any) => {
-    setForm({ ...form, [name]: value });
+    setForm((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async () => {
     if (!form.title) {
       Alert.alert("Validation", "Title is required!");
+      return;
+    }
+
+    // ⏰ Basic validation: if not all-day, ensure times are valid
+    if (!form.all_day && form.end_time <= form.start_time) {
+      Alert.alert("Validation", "End time must be after start time.");
       return;
     }
 
@@ -40,27 +88,25 @@ export default function AddHabitScreen() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...form,
-          start_date: form.start_date.toISOString().split("T")[0],
-          time: form.time.toTimeString().split(" ")[0], // HH:MM:SS
-          unit_value: form.unit_value ? parseInt(form.unit_value) : null,
-          category_id: form.category_id ? parseInt(form.category_id) : null,
+          start_date: form.start_date.toISOString().split("T")[0], // YYYY-MM-DD
+          start_time: form.all_day
+            ? null
+            : form.start_time.toTimeString().split(" ")[0], // HH:MM:SS
+          end_time: form.all_day
+            ? null
+            : form.end_time.toTimeString().split(" ")[0],
+          unit_value: form.unit_value
+            ? parseInt(form.unit_value as string, 10)
+            : null,
+          category_id: form.category_id
+            ? parseInt(form.category_id as string, 10)
+            : null,
         }),
       });
 
       if (response.ok) {
         Alert.alert("Success", "Habit created!");
-        setForm({
-          title: "",
-          description: "",
-          schedule_type: "daily",
-          unit: "",
-          unit_value: "",
-          start_date: new Date(),
-          time: new Date(),
-          habit_type: "health",
-          notes: "",
-          category_id: "",
-        });
+        setForm(defaultForm);
       } else {
         Alert.alert("Error", "Could not create habit.");
       }
@@ -73,6 +119,7 @@ export default function AddHabitScreen() {
     <ScrollView contentContainerStyle={styles.scrollContainer}>
       <View style={styles.formContainer}>
         <Text style={styles.title}>Add New Habit</Text>
+
         {/* Title */}
         <Text style={styles.hintText}>Title</Text>
         <TextInput
@@ -81,17 +128,18 @@ export default function AddHabitScreen() {
           value={form.title}
           onChangeText={(v) => handleChange("title", v)}
         />
-        
-        <Text style={styles.hintText}>Description</Text>
+
         {/* Description */}
+        <Text style={styles.hintText}>Description</Text>
         <TextInput
           style={styles.input}
           placeholder="Description"
           value={form.description}
           onChangeText={(v) => handleChange("description", v)}
         />
+
+        {/* Frequency */}
         <Text style={styles.hintText}>Frequency</Text>
-        {/* Schedule Type */}
         <Picker
           selectedValue={form.schedule_type}
           onValueChange={(v) => handleChange("schedule_type", v)}
@@ -102,7 +150,7 @@ export default function AddHabitScreen() {
           <Picker.Item label="Monthly" value="monthly" />
         </Picker>
 
-        {/* Unit */}
+        {/* Unit + Value */}
         <Text style={styles.hintText}>Unit</Text>
         <TextInput
           style={styles.input}
@@ -121,33 +169,59 @@ export default function AddHabitScreen() {
 
         {/* Date Picker */}
         <Text style={styles.hintText}>Date</Text>
-        <TouchableOpacity style={styles.input} onPress={() => setShowDatePicker(true)}>
-          <Text>{form.start_date.toISOString().split("T")[0]}</Text>
-        </TouchableOpacity>
-        {showDatePicker && (
-          <DateTimePicker
-            value={form.start_date}
-            mode="date"
-            display="default"
-            onChange={(event, date) => {
-              setShowDatePicker(false);
-              if (date) handleChange("start_date", date);
-            }}
-          />
+        <SafeAreaView>    
+          <Button onPress={showDatepicker} title="Select Date" />
+          <Text>Selected: {form.start_date.toLocaleDateString()}</Text>
+          {show && (
+            <DateTimePicker
+              testID="dateTimePicker"
+              value={form.start_date}
+              mode={mode}
+              is24Hour={true}
+              onChange={onChange}
+            />
+            )}
+          </SafeAreaView>
+
+        {/* All Day Toggle */}
+        <Text style={styles.hintText}>All Day</Text>
+        <Switch
+          value={form.all_day}
+          onValueChange={(v) => handleChange("all_day", v)}
+        />
+        <Text style={{ marginBottom: 12 }}>
+          {form.all_day ? "All Day" : "Specific Time"}
+        </Text>
+
+        {/* Time Pickers (hidden if all_day) */}
+        {!form.all_day && (
+          <>
+            <Text style={styles.hintText}>Start Time</Text>
+            <TouchableOpacity
+              style={styles.input}
+              onPress={() => setShowTimePicker("start")}
+            >
+              <Text>{form.start_time.toTimeString().slice(0, 5)}</Text>
+            </TouchableOpacity>
+
+            <Text style={styles.hintText}>End Time</Text>
+            <TouchableOpacity
+              style={styles.input}
+              onPress={() => setShowTimePicker("end")}
+            >
+              <Text>{form.end_time.toTimeString().slice(0, 5)}</Text>
+            </TouchableOpacity>
+          </>
         )}
-        <Text style={styles.hintText}>Time</Text>
-        {/* Time Picker */}
-        <TouchableOpacity style={styles.input} onPress={() => setShowTimePicker(true)}>
-          <Text>{form.time.toTimeString().slice(0, 5)}</Text>
-        </TouchableOpacity>
+
         {showTimePicker && (
           <DateTimePicker
-            value={form.time}
+            value={showTimePicker === "start" ? form.start_time : form.end_time}
             mode="time"
             display="default"
-            onChange={(event, date) => {
-              setShowTimePicker(false);
-              if (date) handleChange("time", date);
+            onChange={(event, time) => {
+              setShowTimePicker(null);
+              if (time) handleChange(`${showTimePicker}_time`, time);
             }}
           />
         )}
@@ -175,7 +249,7 @@ export default function AddHabitScreen() {
         />
 
         {/* Category ID */}
-        <Text style={styles.hintText}>ID</Text>
+        <Text style={styles.hintText}>Category ID</Text>
         <TextInput
           style={styles.input}
           placeholder="Category ID"
@@ -218,10 +292,6 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     textAlign: "center",
   },
-  iconContainer: {
-    alignItems: "center",
-    marginBottom: 16,
-  },
   input: {
     backgroundColor: "#f2f2f2",
     padding: 12,
@@ -250,8 +320,8 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   hintText: {
-  fontSize: 20,
-  color: "#888",
-  marginTop: 4,
+    fontSize: 20,
+    color: "#888",
+    marginTop: 4,
   },
 });

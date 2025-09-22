@@ -12,7 +12,9 @@ class TaskBase(BaseModel):
     unit: Optional[str] = None
     unit_value: Optional[int] = None
     start_date: Optional[date] = None
-    time: Optional[time] = None
+    start_time: Optional[time] = None
+    end_time: Optional[time] = None
+    all_day: Optional[bool] = None
     habit_type: Optional[str] = None
     notes: Optional[str] = None
     category_id: Optional[int] = None
@@ -33,7 +35,9 @@ class TaskUpdate(BaseModel):
     unit: Optional[str] = None
     unit_value: Optional[int] = None
     start_date: Optional[date] = None
-    time: Optional[time] = None
+    start_time: Optional[time] = None
+    end_time: Optional[time] = None
+    all_day: Optional[bool] = None
     habit_type: Optional[str] = None
     notes: Optional[str] = None
     category_id: Optional[int] = None
