@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, validator, ConfigDict 
 from typing import Optional
 from datetime import date, time
 from enum import Enum
@@ -102,11 +102,9 @@ class TaskUpdate(BaseModel):
 # Response (inclui id e timestamps)
 # -----------------------
 class Task(TaskBase):
+    model_config = ConfigDict(from_attributes=True)
     id: int
     completed: bool = False
-
-    class Config:
-        orm_mode = True  # Keep for Pydantic v1 compatibility
 
 # -----------------------
 # Forward reference for category (to avoid circular imports)

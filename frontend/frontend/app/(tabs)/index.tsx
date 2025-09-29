@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { StyleSheet, View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 
-const API_URL = "http://192.168.1.75:8000"; // teu backend
+const API_URL = "http://127.0.0.1:8000";
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -12,6 +12,26 @@ export default function HomeScreen() {
   useEffect(() => {
     fetchTasks();
   }, []);
+
+  const deleteTask = async (taskId: number, taskTitle: string) => {
+    if (window.confirm(`Are you sure you want to delete "${taskTitle}"?`)) {
+      try {
+        const response = await fetch(`${API_URL}/tasks/${taskId}`, {
+          method: 'DELETE',
+        });
+        
+        if (response.ok) {
+          setTasks(tasks.filter(task => task.id !== taskId));
+          alert('Task deleted successfully');
+        } else {
+          alert('Failed to delete task');
+        }
+      } catch (error) {
+        console.error('Erro ao deletar tarefa:', error);
+        alert('Error deleting task');
+      }
+    }
+  };
 
   const fetchTasks = async () => {
     try {
@@ -44,15 +64,25 @@ export default function HomeScreen() {
     <ScrollView contentContainerStyle={styles.container}>
       {tasks.length === 0 && <Text style={styles.noTasks}>No tasks yet</Text>}
       {tasks.map((task) => (
-        <TouchableOpacity
-          key={task.id}
-          style={styles.taskCard}
-          onPress={() => handlePress(task.id)}
-        >
-          <Text style={styles.taskTitle}>{task.title}</Text>
-          <Text style={styles.taskType}>{task.habit_type}</Text>
-          <Text style={styles.taskDate}>Start: {task.start_date}</Text>
-        </TouchableOpacity>
+        <View key={task.id} style={styles.taskRow}>
+          <TouchableOpacity
+            style={styles.taskCard}
+            onPress={() => handlePress(task.id)}
+          >
+            <Text style={styles.taskTitle}>{task.title}</Text>
+            <Text style={styles.taskType}>{task.habit_type}</Text>
+            <Text style={styles.taskDate}>Date: {task.start_date}</Text>
+            <Text style={styles.taskDate}>Start Time: {task.start_time}</Text>
+            <Text style={styles.taskDate}>End Time: {task.end_time}</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={() => deleteTask(task.id, task.title)}
+          >
+            <Text style={styles.deleteButtonText}>✕</Text>
+          </TouchableOpacity>
+        </View>
       ))}
     </ScrollView>
   );
@@ -73,10 +103,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#888',
   },
+  taskRow: {
+    flexDirection: 'row',
+    marginBottom: 12,
+    alignItems: 'stretch',
+  },
   taskCard: {
+    flex: 1,
     backgroundColor: '#fff',
     padding: 16,
-    marginBottom: 12,
     borderRadius: 12,
     shadowColor: '#cf4949ff',
     shadowOffset: { width: 0, height: 3 },
@@ -97,5 +132,19 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontSize: 12,
     color: '#999',
+  },
+  deleteButton: {
+    backgroundColor: '#ff4444',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    marginLeft: 8,
+    minWidth: 60,
+  },
+  deleteButtonText: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: 'bold',
   },
 });
